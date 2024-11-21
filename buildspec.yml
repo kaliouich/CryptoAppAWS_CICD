@@ -5,8 +5,9 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws --version
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 533267040025.dkr.ecr.us-east-1.amazonaws.com/kilarepo1
-      - REPOSITORY_URI=533267040025.dkr.ecr.us-east-1.amazonaws.com/kilarepo1
+      - REPOSITORY_URI=$(aws ecr describe-repositories --query "repositories[0].repositoryUri" --output text)
+      - if [ -z "$REPOSITORY_URI" ]; then echo "No repositories found"; exit 1; fi
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:=latest}
 
