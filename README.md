@@ -36,13 +36,13 @@ To put theory into practice, I utilized the **KodeKloud** playground and impleme
 1. **CodeCommit Credentials Issue:**  
    Faced hurdles with AWS CodeCommit as the KodeKloud playground doesn’t allow the creation of Git credentials, complicating code transfer between GitHub and CodeCommit.
 
-   🔗 Check my experimental script: [Issue 1 Script](https://github.com/yourusername/CryptoAppAWS_CICD/aws_scripts/issue_1.sh)  
+   🔗 Check my experimental script: [Issue 1 Script](https://github.com/kaliouich/CryptoAppAWS_CICD/aws_scripts/issue_1.sh)  
    ![Attach Policy Issue 1](./aws_scripts/imgs/Attachpolicy_kodekloud_issue_1.png)
 
 2. **Policy Permissions Error:**  
    Encountered access denied errors due to insufficient IAM user permissions for AWS CodeCommit when using my SSH public key.
 
-   🔗 Check my experimental script: [Issue 2 Script](https://github.com/yourusername/CryptoAppAWS_CICD/aws_scripts/issue_2.sh)  
+   🔗 Check my experimental script: [Issue 2 Script](https://github.com/kaliouich/CryptoAppAWS_CICD/aws_scripts/issue_2.sh)  
    ![PassRole Issue 2](./aws_scripts/imgs/PassRole_issue_2.png)
 
 3. **Build Project Creation Error:**  
