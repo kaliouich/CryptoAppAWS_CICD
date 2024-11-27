@@ -2,7 +2,8 @@
 
 # Prompt for AWS credentials
 read -p "Enter your AWS Access Key ID: " AWS_ACCESS_KEY_ID
-read -p "Enter your AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
+read -s -p "Enter your AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
+echo "*****************"
 read -p "Enter your AWS Region (e.g., us-east-1): " AWS_REGION
 read -p "Enter your ECR repository name: " ECR_REPO_NAME
 
@@ -25,19 +26,24 @@ fi
 REPOSITORY_URI=$(aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" --query "repositories[0].repositoryUri" --output text)
 echo "ECR Repository URI: $REPOSITORY_URI"
 
-# Prompt for CodeBuild project name created manually
-echo "Please enter the name of the CodeBuild project you created manually:"
-read CODEBUILD_PROJECT_NAME
+# Prompt for CodeBuild project creation
+read -p "Please create a CodeBuild project manually and then press [Enter] to continue..."
 
-# Check if the CodeBuild project exists
-echo "Checking if CodeBuild project exists..."
-PROJECT_EXISTS=$(aws codebuild batch-get-projects --names "$CODEBUILD_PROJECT_NAME" --query "projects[0]" --output text)
+# Automatically find the CodeBuild project name
+echo "Fetching existing CodeBuild projects..."
+CODEBUILD_PROJECTS=$(aws codebuild list-projects --query "projects" --output text)
 
-if [ "$PROJECT_EXISTS" == "None" ]; then
-    echo "No existing CodeBuild project found with the name: $CODEBUILD_PROJECT_NAME. Please verify the project name."
+if [ -z "$CODEBUILD_PROJECTS" ]; then
+    echo "No CodeBuild projects found. Please create a CodeBuild project first."
     exit 1
 else
-    echo "Found existing CodeBuild project: $CODEBUILD_PROJECT_NAME"
+    # Display the list of projects and select the first one for simplicity
+    echo "Found CodeBuild projects:"
+    echo "$CODEBUILD_PROJECTS"
+    
+    # Retrieve the name of the first project
+    CODEBUILD_PROJECT_NAME=$(echo "$CODEBUILD_PROJECTS" | head -n 1)
+    echo "Using the first project found: $CODEBUILD_PROJECT_NAME"
 fi
 
 # Retrieve the CodeBuild project's IAM role
