@@ -2,6 +2,28 @@
 
 Happy coding!
 
+## Week 2
+
+# 🚀 Terraform Migration 🚀
+
+I've successfully migrated my AWS infrastructure for the fake-crypto-webapp application from manual CLI commands to Terraform! This upgrade improves consistency, reliability, and reduces operational overhead. 🚀 The new infrastructure is highly automated and scalable.
+
+🔧 My Terraform configuration orchestrates a seamless CI/CD pipeline:
+
+- 📂 **CodeCommit Repository (fake-crypto-webapp):** The application's source code is version-controlled here.
+
+- 🏗️ **CodeBuild Project (codebuild-fake-crypto-webapp):** Changes in CodeCommit trigger CodeBuild, which builds a Docker image and pushes it to...
+
+- 📦 **ECR Repository (fake-crypto-webapp):** The built Docker image is stored securely in this registry.
+
+- 🔄 **CodePipeline (crypto-app):** This pipeline orchestrates the entire deployment process, starting with CodeCommit and deploying to...
+
+- ☁️ **ECS Cluster (khalil-lab-cluster):** The application's containers run within this managed cluster, leveraging an autoscaling group for dynamic scaling.
+
+- ⚙️ **ECS Service (fake-crypto-webapp):** This service manages deployment and scaling of containers, incorporating a deployment circuit breaker for resilience.
+
+- 🔗 **Application Load Balancer (khalil-lab-alb):** The load balancer distributes traffic across healthy ECS service instances, ensuring high availability. Security is managed by the khalil-lab-sg security group, and various IAM roles provide secure access.
+
 ## Week 1
 
 # 🚀 AWS CI/CD Pipeline Setup 🚀
