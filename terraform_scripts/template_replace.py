@@ -47,7 +47,7 @@ def replace_in_files(files: list[str], subst: dict[str, str]):
         print(f"Replacing: {file_path}")
 
 
-dir_path = os.getenv("DIR_PATH", "./assets/fake-crypto-webapp-project-main")
+dir_path = os.getenv("DIR_PATH", "./assets/fake-crypto-web-app-project-main")
 ACCOUNT_ID = os.getenv("ACCOUNT_ID", "{{ACCOUNT_ID_NOT_FOUND}}")
 
 print(f"Account: {ACCOUNT_ID}")
@@ -61,6 +61,6 @@ replace_in_files(
     subst={
         "ACCOUNT_ID": ACCOUNT_ID,
         "AWS_REGION": "us-east-1",
-        "REPO_NAME": "fake-crypto-webapp"
+        "REPO_NAME": "fake-crypto-web-app"
     },
 )

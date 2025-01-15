@@ -1,4 +1,4 @@
-repo_zip = "../fake-crypto-webapp-project-main.zip"
+web_app_repo_zip = "../fake-crypto-web-app-project-main.zip"
 
 enabled_modules = {
   code_upload            = true

@@ -132,7 +132,7 @@ resource "tls_private_key" "ssh_key" {
 }
 
 resource "aws_key_pair" "deployer" {
-  key_name   = "fake-crypto-webapp-cluster-key"
+  key_name   = "fake-crypto-web-app-cluster-key"
   public_key = tls_private_key.ssh_key.public_key_openssh
 }
 

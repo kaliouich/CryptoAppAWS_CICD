@@ -1,8 +1,11 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  repo_name    = var.repo_name
-  repo_zip     = var.repo_zip
+  project_name = var.project_name
+  repo_name    = var.web_app_repo_name
+  repo_zip     = var.web_app_repo_zip
+  repo_name2   = var.login_app_repo_name
+  repo_zip2    = var.login_app_repo_zip
   account_id   = data.aws_caller_identity.current.account_id
   cluster_name = "khalil-lab-cluster"
 
@@ -66,7 +69,7 @@ resource "aws_iam_role" "codebuild_role" {
 
 #permissions for codebuild role to run pipeline
 resource "aws_iam_policy" "codebuild_policy" {
-  name        = "CodeBuildPolicy-${var.repo_name}"
+  name        = "CodeBuildPolicy-${local.repo_name}"
   description = "Policy for CodeBuild role to access S3 and IAM"
   policy = jsonencode({
     Version = "2012-10-17",
@@ -92,25 +95,25 @@ resource "aws_iam_role_policy_attachment" "codebuild_policy_attachment" {
 
 # Attach AmazonEC2ContainerRegistryPowerUser policy to the role
 resource "aws_iam_policy_attachment" "AmazonEC2ContainerRegistryPowerUser" {
-  name       = "codebuild-policy-attachment-${var.repo_name}"
+  name       = "codebuild-policy-attachment-${local.repo_name}"
   roles      = [aws_iam_role.codebuild_role.name]
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
 
 resource "aws_iam_policy_attachment" "AWSElasticBeanstalkRoleECS" {
-  name       = "codebuild-policy-attachment-${var.repo_name}"
+  name       = "codebuild-policy-attachment-${local.repo_name}"
   roles      = [aws_iam_role.codebuild_role.name]
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkRoleECS"
 }
 
 resource "aws_iam_policy_attachment" "CloudWatchFullAccess" {
-  name       = "codebuild-policy-attachment-${var.repo_name}"
+  name       = "codebuild-policy-attachment-${local.repo_name}"
   roles      = [aws_iam_role.codebuild_role.name]
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
 }
 
 resource "aws_iam_policy_attachment" "AWSCodeCommitReadOnly" {
-  name       = "codebuild-policy-attachment-${var.repo_name}"
+  name       = "codebuild-policy-attachment-${local.repo_name}"
   roles      = [aws_iam_role.codebuild_role.name]
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeCommitReadOnly"
 }
@@ -399,8 +402,8 @@ resource "null_resource" "upload_code" {
       python3 "./template_replace.py" || exit 1
 
       cd $DIR_PATH
-      git config --global user.email "khalil@cloud.com"
-      git config --global user.name "khalil"
+      git config user.email "khalil@cloud.com"
+      git config user.name "khalil"
       git add .
 
       set +ex
