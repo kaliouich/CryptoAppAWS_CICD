@@ -88,6 +88,26 @@ resource "aws_iam_policy" "codebuild_policy" {
   })
 }
 
+resource "aws_iam_policy" "codebuild_policy_login" {
+  name        = "CodeBuildPolicy-${local.repo_name2}"
+  description = "Policy for CodeBuild role to access S3 and IAM"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "Statement1",
+        Effect = "Allow",
+        Action = [
+          "s3:GetObject",
+          "iam:PassRole",
+          "s3:PutObject"
+        ],
+        Resource = ["*"]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "codebuild_policy_attachment" {
   role       = aws_iam_role.codebuild_role.name
   policy_arn = aws_iam_policy.codebuild_policy.arn
@@ -114,6 +134,31 @@ resource "aws_iam_policy_attachment" "CloudWatchFullAccess" {
 
 resource "aws_iam_policy_attachment" "AWSCodeCommitReadOnly" {
   name       = "codebuild-policy-attachment-${local.repo_name}"
+  roles      = [aws_iam_role.codebuild_role.name]
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeCommitReadOnly"
+}
+
+# Attach AmazonEC2ContainerRegistryPowerUser policy to the role
+resource "aws_iam_policy_attachment" "AmazonEC2ContainerRegistryPowerUserLogin" {
+  name       = "codebuild-policy-attachment-${local.repo_name2}"
+  roles      = [aws_iam_role.codebuild_role.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
+
+resource "aws_iam_policy_attachment" "AWSElasticBeanstalkRoleECSLogin" {
+  name       = "codebuild-policy-attachment-${local.repo_name2}"
+  roles      = [aws_iam_role.codebuild_role.name]
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkRoleECS"
+}
+
+resource "aws_iam_policy_attachment" "CloudWatchFullAccessLogin" {
+  name       = "codebuild-policy-attachment-${local.repo_name2}"
+  roles      = [aws_iam_role.codebuild_role.name]
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+}
+
+resource "aws_iam_policy_attachment" "AWSCodeCommitReadOnlyLogin" {
+  name       = "codebuild-policy-attachment-${local.repo_name2}"
   roles      = [aws_iam_role.codebuild_role.name]
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeCommitReadOnly"
 }
@@ -377,6 +422,12 @@ module "code_upload" {
   repo_name = local.repo_name
 }
 
+module "code_upload_login" {
+  count = local.enable_code_upload
+
+  source    = "./modules/code-upload"
+  repo_name = local.repo_name2
+}
 
 resource "null_resource" "upload_code" {
   count = local.enable_code_upload
@@ -408,7 +459,39 @@ resource "null_resource" "upload_code" {
 
       set +ex
       git commit -m "Initial commit"
+      git push
+      rm -rf *
+      cd -
+    EOT
+  }
+
+    provisioner "local-exec" {
+    command = <<-EOT
+      set -ex
+      export AWS_DEFAULT_REGION=${local.region}
+      export AWS_PROFILE=${local.profile}
+      export ACCOUNT_ID=${local.account_id}
+      export DIR_PATH="./assets/${local.repo_name2}"
+
+      mkdir -p assets
+      cd assets
+      git clone codecommit::${local.region}://${local.repo_name2} || echo "Directory exists"
+
+      unzip -o ${local.repo_zip2} -d demo
+      cp -r demo/* ${local.repo_name2};rm -rf demo
+      cd -
+
+      python3 "./template_replace2.py" || exit 1
+
+      cd $DIR_PATH
+      git config user.email "khalil@cloud.com"
+      git config user.name "khalil"
+      git add .
+
+      set +ex
+      git commit -m "Initial commit"
       git push 
+      rm -rf *
       cd -
     EOT
   }
@@ -420,6 +503,16 @@ module "codebuild_creation" {
 
   source         = "./modules/codebuild-creation" # Assumed new name for the module
   repo_name      = local.repo_name
+  repo_url       = module.code_upload[0].clone_url_http # Adjust if clone_url_http is not available in code_upload module
+  codebuild_role = aws_iam_role.codebuild_role.arn
+}
+
+module "codebuild_creation_login" {
+  count      = local.enable_codebuild_creation
+  depends_on = [module.code_upload]
+
+  source         = "./modules/codebuild-creation" # Assumed new name for the module
+  repo_name      = local.repo_name2
   repo_url       = module.code_upload[0].clone_url_http # Adjust if clone_url_http is not available in code_upload module
   codebuild_role = aws_iam_role.codebuild_role.arn
 }
