@@ -513,7 +513,7 @@ module "codebuild_creation_login" {
 
   source         = "./modules/codebuild-creation" # Assumed new name for the module
   repo_name      = local.repo_name2
-  repo_url       = module.code_upload[0].clone_url_http # Adjust if clone_url_http is not available in code_upload module
+  repo_url       = module.code_upload_login[0].clone_url_http # Adjust if clone_url_http is not available in code_upload module
   codebuild_role = aws_iam_role.codebuild_role.arn
 }
 
