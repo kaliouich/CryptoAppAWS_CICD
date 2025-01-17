@@ -9,20 +9,18 @@ variable "ecs_cluster_name" {
   type        = string
 }
 
-variable "ecs_service_name" {
-  description = "The name of the ECS service to update with the deployment"
-  type        = string
+variable "ecs_services" {
+  description = "List of ECS services with their names, ports, and path patterns"
+  type = list(object({
+    name         = string
+    port         = number
+    path_pattern = list(string)  # Add path_pattern to define URL path patterns for each service
+  }))
 }
 
 variable "codebuild_project_arn" {
   description = "The ARN of the CodeBuild project that builds the application"
   type        = string
-}
-
-variable "ecs_service_port" {
-  description = "The port on which the service listens"
-  type        = number
-  default     = 80
 }
 
 variable "vpc_id" {
@@ -44,5 +42,3 @@ variable "alb_name" {
   description = "The name of the ALB"
   type        = string
 }
-
-#comment to check

@@ -1,4 +1,3 @@
-
 resource "aws_lb" "this" {
   name               = var.alb_name
   internal           = false
@@ -16,9 +15,9 @@ resource "aws_lb" "this" {
 }
 
 resource "aws_lb_target_group" "this" {
-
-  name        = var.ecs_service_name
-  port        = var.ecs_service_port
+  count       = length(var.ecs_services)
+  name        = "${var.alb_name}-tg-${var.ecs_services[count.index].name}"
+  port        = var.ecs_services[count.index].port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "instance"
@@ -35,8 +34,24 @@ resource "aws_lb_listener" "this" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.this.arn
+    target_group_arn = aws_lb_target_group.this[0].arn
   }
 
   depends_on = [aws_lb_target_group.this]
+}
+
+resource "aws_lb_listener_rule" "this" {
+  count        = length(var.ecs_services)
+  listener_arn = aws_lb_listener.this.arn
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.this[count.index].arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/${var.ecs_services[count.index].name}/*"]
+    }
+  }
 }

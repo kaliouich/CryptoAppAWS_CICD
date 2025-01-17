@@ -19,32 +19,20 @@ variable "cluster_capacity" {
   description = "ECS Cluster Capacity"
 }
 
-variable "desired_count" {
-  type        = number
-  default     = 2
-  description = "Desired Count"
-}
-
 variable "enable_circuit_breaker" {
   type        = bool
   default     = false
   description = "Enable Circuit Breaker"
 }
 
-variable "service_name" {
-  type        = string
-  description = "ECS Service Name"
-}
-
-variable "container_image" {
-  type        = string
-  description = "Docker Image"
-}
-
-variable "container_port" {
-  type        = number
-  default     = 80
-  description = "Container Port"
+variable "services" {
+  type = list(object({
+    name           = string
+    container_image = string
+    container_port = number
+    desired_count  = number
+  }))
+  description = "List of services to create"
 }
 
 variable "aws_region" {
@@ -65,9 +53,8 @@ variable "create_tg" {
 }
 
 variable "target_group_arn" {
-  type        = string
-  default     = ""
-  description = "Target Group ARN"
+  description = "List of target group ARNs"
+  type        = list(string)
 }
 
 variable "instance_type" {
@@ -141,7 +128,7 @@ resource "aws_key_pair" "deployer" {
 
 
 resource "aws_cloudwatch_log_group" "this" {
-  name              = "/ecs/${var.service_name}"
+  name              = "/ecs/${var.cluster_name}"
   retention_in_days = 1
 }
 
@@ -208,7 +195,7 @@ resource "aws_autoscaling_group" "ecs" {
 
   min_size         = 1
   max_size         = var.cluster_capacity
-  desired_capacity = var.desired_count
+  desired_capacity = var.services[0].desired_count  # Use the desired count of the first service as default
 
   availability_zones = [
     "${var.aws_region}a",
@@ -248,52 +235,44 @@ resource "aws_ecs_cluster_capacity_providers" "ecs" {
   }
 }
 
-resource "aws_ecs_task_definition" "this" {
-  family                   = var.service_name
+# Create a task definition for each service
+resource "aws_ecs_task_definition" "services" {
+  count                    = length(var.services)
+  family                   = var.services[count.index].name
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
   execution_role_arn       = var.task_execution_role
 
-  container_definitions = jsonencode([
-    {
-      name      = var.service_name
-      image     = var.container_image
+  container_definitions = jsonencode([    {      name      = var.services[count.index].name
+      image     = var.services[count.index].container_image
       cpu       = 256
       memory    = 512
       essential = true
-      portMappings = [
-        {
-          containerPort = var.container_port
-          hostPort      = var.container_port
+      portMappings = [        {          containerPort = var.services[count.index].container_port
+          hostPort      = var.services[count.index].container_port
           protocol      = "tcp"
         }
       ]
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/${var.service_name}"
+          awslogs-group         = aws_cloudwatch_log_group.this.name
           awslogs-region        = var.aws_region
           awslogs-stream-prefix = "ecs"
         }
       }
-
     }
   ])
 }
 
-resource "aws_ecs_service" "this" {
-  name            = var.service_name
+# Create a service for each item in the services list
+resource "aws_ecs_service" "services" {
+  count           = length(var.services)
+  name            = var.services[count.index].name
   cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.this.arn
-  desired_count   = var.desired_count
+  task_definition = aws_ecs_task_definition.services[count.index].arn
+  desired_count   = var.services[count.index].desired_count
   launch_type     = "EC2"
-
-
-  # network_configuration {
-  #   subnets          = data.aws_subnets.default.ids
-  #   security_groups  = [var.security_group_id]
-  #   assign_public_ip = true
-  # }
 
   dynamic "deployment_controller" {
     for_each = var.enable_circuit_breaker == true ? [1] : []
@@ -311,11 +290,11 @@ resource "aws_ecs_service" "this" {
   }
 
   dynamic "load_balancer" {
-    for_each = var.create_tg == true ? [1] : []
+    for_each = var.create_tg == true ? var.target_group_arn : []
     content {
-      target_group_arn = var.target_group_arn
-      container_name   = var.service_name
-      container_port   = var.container_port
+      target_group_arn = load_balancer.value
+      container_name   = var.services[count.index].name
+      container_port   = var.services[count.index].container_port
     }
   }
 

@@ -166,7 +166,23 @@ resource "aws_iam_policy_attachment" "AWSCodeCommitReadOnlyLogin" {
 # CodePipeline Role
 
 resource "aws_iam_role" "codepipeline_role" {
-  name = "codepipeline-role-crypto-app"
+  name = "codepipeline-role-crypto-web-app"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "codepipeline.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role" "codepipeline_role_login" {
+  name = "codepipeline-role-crypto-login-app"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -365,6 +381,11 @@ resource "aws_iam_role_policy_attachment" "codepipeline_custom_policy_attachment
   policy_arn = aws_iam_policy.codepipeline_custom_policy.arn
 }
 
+resource "aws_iam_role_policy_attachment" "codepipeline_custom_policy_attachment_login" {
+  role       = aws_iam_role.codepipeline_role_login.name
+  policy_arn = aws_iam_policy.codepipeline_custom_policy.arn
+}
+
 # Create IAM role for ECS Task Execution
 resource "aws_iam_role" "ecsTaskExecutionRole" {
   name = "ecsTaskExecutionRole"
@@ -520,22 +541,38 @@ module "codebuild_creation_login" {
 module "ecs_service_creation" {
   count      = local.enable_ecs_service_creation
   depends_on = [module.codebuild_creation]
-
-  source = "./modules/ecs-service-creation" # Assumed new name for the module
-
-  service_name           = local.repo_name
-  desired_count          = 1
+  source     = "./modules/ecs-service-creation"
+  
+  services = [
+    {
+      name            = local.repo_name
+      container_image = "${module.codebuild_creation[0].ecr_repository_url}:latest"
+      container_port  = 5000
+      desired_count   = 1
+    },
+    {
+      name            = local.repo_name2
+      container_image = "${module.codebuild_creation_login[0].ecr_repository_url}:latest"
+      container_port  = 8080
+      desired_count   = 1
+    },
+    # Add more services as needed
+    # {
+    #   name            = "second-service"
+    #   container_image = "second-image:latest"
+    #   container_port  = 8080
+    #   desired_count   = 2
+    # }
+  ]
+  
   cluster_name           = local.cluster_name
-  container_image        = "${module.codebuild_creation[0].ecr_repository_url}:latest" # Adjust if ecr_repository_url is not available in codebuild_creation module
   aws_region             = local.region
-  container_port         = 5000
   security_group_id      = aws_security_group.default.id
   create_tg              = local.enable_alb_creation == 1 ? true : false
-  target_group_arn       = local.enable_alb_creation == 1 ? module.alb_creation[0].target_group_arn : "" # Adjust if target_group_arn is not available in alb_creation module
+  target_group_arn       = local.enable_alb_creation == 1 ? module.alb_creation[0].target_group_arn : [""]
   task_execution_role    = aws_iam_role.ecsTaskExecutionRole.arn
   enable_circuit_breaker = local.enable_circuit_breaker == 1 ? true : false
   instance_profile_name  = aws_iam_instance_profile.ecs_instance_role.name
-
 }
 
 module "alb_creation" {
@@ -547,12 +584,22 @@ module "alb_creation" {
   aws_region            = local.region
   codebuild_project_arn = module.codebuild_creation[0].codebuild_project_arn # Adjust if codebuild_project_arn is not available in codebuild_creation module
   ecs_cluster_name      = local.cluster_name
-  ecs_service_name      = local.repo_name
-  ecs_service_port      = 5000
+  ecs_services = [
+    {
+      name         = local.repo_name
+      port         = 5000
+      path_pattern = ["/api/*"]  # Example path pattern for the first service
+    },
+    {
+      name         = local.repo_name2
+      port         = 8080
+      path_pattern = ["/login/*"]  # Example path pattern for the second service
+    }
+  ]
   vpc_id                = data.aws_vpc.default.id
   alb_security_group_id = aws_security_group.default.id
   subnets               = data.aws_subnets.default.ids
-  alb_name              = "khalil-lab-alb"
+  alb_name              = "alb"
 }
 
 module "codepipeline_creation" {
@@ -565,4 +612,16 @@ module "codepipeline_creation" {
   repo_name    = local.repo_name
   ressource_name = "crypto-app"
   role_arn     = aws_iam_role.codepipeline_role.arn
+}
+
+module "codepipeline_creation_login" {
+  count      = local.enable_codepipeline_creation
+  depends_on = [module.ecs_service_creation]
+
+  source = "./modules/codepipeline-creation"
+
+  cluster_name = local.cluster_name
+  repo_name    = local.repo_name2
+  ressource_name = "crypto-app-login"
+  role_arn     = aws_iam_role.codepipeline_role_login.arn
 }
